@@ -1,6 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -12,6 +13,16 @@ const BASE_URL = 'https://api.openweathermap.org/data/2.5';
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+
+// Favicon handler - prevents 404 errors for favicon requests
+app.get('/favicon.ico', (req, res) => {
+    res.status(204).end();
+});
+
+// Root path - serve index.html
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // Cache for API responses
 const cache = {};
@@ -46,9 +57,11 @@ app.get('/api/weather/:city', async (req, res) => {
         // Check cache first
         let data = getCachedData(cacheKey);
         if (data) {
+            console.log(`✅ [CACHE HIT] Weather data for ${city}`);
             return res.json({ data, source: 'cache' });
         }
 
+        console.log(`🔄 [API CALL] Fetching weather for ${city}`);
         const response = await axios.get(`${BASE_URL}/weather`, {
             params: {
                 q: city,
@@ -59,6 +72,7 @@ app.get('/api/weather/:city', async (req, res) => {
 
         // Cache the result
         setCachedData(cacheKey, response.data);
+        console.log(`💾 [CACHED] Weather data stored for ${city}`);
 
         res.json({ data: response.data, source: 'api' });
     } catch (error) {
@@ -77,9 +91,11 @@ app.get('/api/forecast/:city', async (req, res) => {
 
         let data = getCachedData(cacheKey);
         if (data) {
+            console.log(`✅ [CACHE HIT] Forecast data for ${city}`);
             return res.json({ data, source: 'cache' });
         }
 
+        console.log(`🔄 [API CALL] Fetching forecast for ${city}`);
         const response = await axios.get(`${BASE_URL}/forecast`, {
             params: {
                 q: city,
@@ -89,6 +105,7 @@ app.get('/api/forecast/:city', async (req, res) => {
         });
 
         setCachedData(cacheKey, response.data);
+        console.log(`💾 [CACHED] Forecast data stored for ${city}`);
 
         res.json({ data: response.data, source: 'api' });
     } catch (error) {
@@ -107,9 +124,11 @@ app.get('/api/coordinates/:lat/:lon', async (req, res) => {
 
         let data = getCachedData(cacheKey);
         if (data) {
+            console.log(`✅ [CACHE HIT] Weather data for coordinates ${lat}, ${lon}`);
             return res.json({ data, source: 'cache' });
         }
 
+        console.log(`🔄 [API CALL] Fetching weather for coordinates ${lat}, ${lon}`);
         const response = await axios.get(`${BASE_URL}/weather`, {
             params: {
                 lat: lat,
@@ -120,6 +139,7 @@ app.get('/api/coordinates/:lat/:lon', async (req, res) => {
         });
 
         setCachedData(cacheKey, response.data);
+        console.log(`💾 [CACHED] Weather data stored for coordinates ${lat}, ${lon}`);
 
         res.json({ data: response.data, source: 'api' });
     } catch (error) {
@@ -134,6 +154,8 @@ app.get('/api/coordinates/:lat/:lon', async (req, res) => {
 app.get('/api/air-quality/:city', async (req, res) => {
     try {
         const city = req.params.city.trim();
+        
+        console.log(`🔄 [API CALL] Fetching air quality for ${city}`);
         
         // First get coordinates
         const geoResponse = await axios.get('https://api.openweathermap.org/geo/1.0/direct', {
@@ -166,10 +188,19 @@ app.get('/api/air-quality/:city', async (req, res) => {
 });
 
 /**
+ * GET /api/health
+ * Health check endpoint
+ */
+app.get('/api/health', (req, res) => {
+    console.log('🏥 [HEALTH CHECK] API status check');
+    res.json({ status: 'API is running' });
+});
+
+/**
  * Error handler
  */
 function handleError(res, error) {
-    console.error('API Error:', error.message);
+    console.error('❌ [ERROR]', error.message);
 
     if (error.response?.status === 404) {
         return res.status(404).json({ 
@@ -188,13 +219,18 @@ function handleError(res, error) {
     });
 }
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-    res.json({ status: 'API is running' });
+// Catch-all 404 handler for API routes
+app.use('/api', (req, res) => {
+    console.warn(`⚠️  [404] API endpoint not found: ${req.method} ${req.path}`);
+    res.status(404).json({ error: 'API endpoint not found' });
 });
 
 // Start server
 app.listen(PORT, () => {
-    console.log(`🌤️  Weather API Server running on port ${PORT}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`\n🌤️  Weather Dashboard API Server`);
+    console.log(`📍 Running on http://localhost:${PORT}`);
+    console.log(`🔐 API Key configured: ${OPENWEATHER_API_KEY ? '✅ Yes' : '❌ No'}`);
+    console.log(`📦 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`📁 Static files: public/`);
+    console.log(`\n✨ Dashboard ready! Open http://localhost:${PORT} in your browser\n`);
 });
