@@ -327,8 +327,7 @@
     </div>
 
     <script>
-        const API_KEY = 'YOUR_OPENWEATHERMAP_API_KEY';
-        const BASE_URL = 'https://api.openweathermap.org/data/2.5';
+        const API_BASE_URL = 'http://localhost:3000/api';
         
         let favorites = JSON.parse(localStorage.getItem('weatherFavorites')) || [];
 
@@ -358,28 +357,32 @@
         }
 
         async function fetchWeatherData(city) {
-            const url = `${BASE_URL}/weather?q=${city}&appid=${API_KEY}&units=metric`;
+            const url = `${API_BASE_URL}/weather/${city}`;
             const response = await fetch(url);
 
             if (!response.ok) {
                 if (response.status === 404) {
                     throw new Error('City not found. Please check the spelling and try again.');
                 }
-                throw new Error('Failed to fetch weather data');
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to fetch weather data');
             }
 
-            return await response.json();
+            const data = await response.json();
+            return data.data;
         }
 
         async function fetchForecastData(city) {
-            const url = `${BASE_URL}/forecast?q=${city}&appid=${API_KEY}&units=metric`;
+            const url = `${API_BASE_URL}/forecast/${city}`;
             const response = await fetch(url);
 
             if (!response.ok) {
-                throw new Error('Failed to fetch forecast data');
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to fetch forecast data');
             }
 
-            return await response.json();
+            const data = await response.json();
+            return data.data;
         }
 
         function displayWeather(data) {
@@ -423,8 +426,7 @@
                             <div class="detail-value">${data.main.pressure} hPa</div>
                         </div>
                         <div class="detail-item">
-                            <div class="detail-label">Wind Speed</div>
-                            <div class="detail-value">${data.wind.speed} m/s</div>
+                            <div class="detail-label">Wind Speed</div>\n                            <div class="detail-value">${data.wind.speed} m/s</div>
                         </div>
                         <div class="detail-item">
                             <div class="detail-label">Max Temp</div>
